@@ -1,0 +1,149 @@
+<html>
+<head>
+
+<script src="/bower_components/tone/build/Tone.js"></script>
+<script type="text/javascript">
+
+// TODO 
+// more chords, inversions of chords, refine probability dependent on style on music 
+
+/* Global variables */
+var synth = new Tone.PolySynth(4, Tone.FMSynth).toMaster();
+var plucky =  new Tone.DuoSynth().toMaster();
+
+var notes = ['F3','F#3',"G3","G#3",'A3','A#3','B3','C4','C#4','D4','D#4 ','E4','F4','F#4','G4','G#4','A4','A#4','B4','C5','C#5','D5','D#5','E5','F5','F#5','G5','G#5','A5','A#5','B5','C6','C#6','D6'];
+
+var chords = {
+  'I':   seventh_chord('M','C4'),
+  'ii':   seventh_chord('m','D4'),
+  'iii':   seventh_chord('m','E4'), 
+  'IV':   seventh_chord('M','F4'),
+  'V':   seventh_chord('M7','G3'),
+  'vi':   seventh_chord('m','A3'),
+  'vii': seventh_chord('halfdim','B3')
+  
+}
+
+//creates an array of 7th chord notes given a quality and note base
+function seventh_chord (type,basenote){
+    var firstNote = notes.indexOf(basenote);
+    var chordNotes = [];
+    var notePositions = []
+    
+    switch(type){
+      case "M": notePositions.push(0,4,7,11);
+      break;
+      case "m":  notePositions.push(0,3,7,10);
+      break;
+      case "dim": notePositions.push(0,3,6,9);
+      break;
+      case "M7": notePositions.push(-2,4,7,10); //G 3rd inversion(4/2)
+      break;
+      case "halfdim":  notePositions.push(0,3,6,10);
+      break;
+    }
+   
+    chordNotes.push(notes[firstNote + notePositions[0]],notes[firstNote+notePositions[1]],notes[firstNote+notePositions[2]],notes[firstNote+notePositions[3]]);
+    return chordNotes;
+}
+
+//https://www.hooktheory.com/trends#node=1&key=rel
+
+//sets chord progression probabilities
+var chain = new Tone.CtrlMarkov({
+  I: ["I","ii","iii","IV","V", "vi","vii"],
+  ii: [
+    {value:'I',"probability":.2},
+    {value:'iii',"probability":.1},
+    {value:'IV',"probability":.05},
+    {value:'vii',"probability":.05},
+    {value:'V',"probability":.6}
+    ],
+  iii: [
+    {value:'vi',"probability":.7},
+    {value:'IV',"probability":.2},
+    {value:'I',"probability":.1}
+    ],
+  IV: [
+    {value:'V',"probability":.6},
+    {value:'I',"probability":.4}
+    ],
+  V: [
+    {value:'I',"probability":.7},
+    {value:'ii',"probability":.1},
+    {value:'vi',"probability":.1},
+    {value:'vii',"probability":.1}
+    ],
+  vi: [
+    {value:'I',"probability":0.1},
+    {value:'ii',"probability":0.7},
+    {value:'IV',"probability":0.2}
+    ],
+  vii: ['I']
+});
+
+
+/** Four Four Time Functions **/
+
+//returns a quarternote(.25), halfnote(.5) or wholenote(1) at random
+function getTimePossibility(){
+  //returns random index num: 0-2 
+    var num = Math.floor(Math.random() * (3 - 0)) + 0;
+    var times = [1, .5, .25];
+    return times[num];
+}
+
+// returns an array with time values that equal 1, a full measure
+function fillFourFourMeasure(){
+
+  var time = [], total = 1;
+  
+  while(true){
+    var timeLength = getTimePossibility();
+    if(total-timeLength >= 0){
+      total -= timeLength;
+      time.push(timeLength);
+    }
+    if(total==0){
+       break;
+    }
+  }
+  return time;
+}
+
+/* Play Sounds */
+
+//assings chords from Ctrl.Markov, set measure number and passes to play function
+function setChords (){
+  for (var i = 0; i < 50; i++){
+    //assigns chord from Markov
+    var chord = chords[chain.value];
+    // created new measure with .5s offset
+    var measureNumber = i * 1 + 0.5;
+    playRandomFourFourNotes(chord,measureNumber);
+    //changes the chord for the next measure
+    chain.next();
+  }
+}
+
+//plays chords given a chord quality and measure number
+function playRandomFourFourNotes(chord,measureTime){
+  var noteLengths = fillFourFourMeasure();
+  
+  for(j = 0; j < noteLengths.length; j++){
+     synth.triggerAttackRelease(chord, noteLengths[j]-.05, measureTime);
+     measureTime += noteLengths[j];
+
+  }
+}
+
+setChords();
+
+</script>
+</head>
+
+ <body>
+
+
+
+ </body>
